@@ -12,14 +12,14 @@
 #include <plugin_api.h>
 #include <config_category.h>
 #include <logger.h>
-#include <asset.h>
+#include <customasset.h>
 #include <version.h>
 
 
-#define PLUGIN_NAME "asset"
+#define PLUGIN_NAME "customasset"
 
 const char * default_config = QUOTE({
-	"plugin" : { 
+	"plugin" : {
 		"description" : "Asset notification plugin",
 		"type" : "string",
 		"default" : PLUGIN_NAME,
@@ -42,7 +42,7 @@ const char * default_config = QUOTE({
 		"description": "A switch that can be used to enable or disable delivery of the asset notification plugin.",
 		"type": "boolean",
 		"displayName" : "Enabled",
-		"default": "false", 
+		"default": "false",
 		"order" : "3" }
 	});
 
@@ -85,9 +85,9 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* config)
 {
-	Asset *asset = new Asset(config);
-	
-	return (PLUGIN_HANDLE)asset;
+	CustomAsset *customasset = new CustomAsset(config);
+
+	return (PLUGIN_HANDLE)customasset;
 }
 
 /**
@@ -107,8 +107,8 @@ bool plugin_deliver(PLUGIN_HANDLE handle,
 {
 	Logger::getLogger()->info("Asset notification plugin_deliver(): deliveryName=%s, notificationName=%s, triggerReason=%s, message=%s",
 							deliveryName.c_str(), notificationName.c_str(), triggerReason.c_str(), message.c_str());
-	Asset *asset = (Asset *)handle;
-	asset->notify(notificationName, triggerReason, message);
+	CustomAsset *customasset = (CustomAsset *)handle;
+	customasset->notify(notificationName, triggerReason, message);
 	return true;
 }
 
@@ -118,9 +118,9 @@ bool plugin_deliver(PLUGIN_HANDLE handle,
 void plugin_registerIngest(PLUGIN_HANDLE *handle, void *func, void *data)
 {
 	Logger::getLogger()->info("Asset notification plugin: plugin_registerIngrest()");
-	Asset *asset = (Asset *)handle;
-	
-	asset->registerIngest((FuncPtr)func, data);
+	CustomAsset *customasset = (CustomAsset *)handle;
+
+	customasset->registerIngest((FuncPtr)func, data);
 	return;
 }
 
@@ -130,9 +130,9 @@ void plugin_registerIngest(PLUGIN_HANDLE *handle, void *func, void *data)
 void plugin_reconfigure(PLUGIN_HANDLE *handle, string& newConfig)
 {
 	Logger::getLogger()->info("Asset notification plugin: plugin_reconfigure()");
-	Asset *asset = (Asset *)handle;
-	
-	asset->reconfigure(newConfig);
+	CustomAsset *customasset = (CustomAsset *)handle;
+
+	customasset->reconfigure(newConfig);
 	return;
 }
 
@@ -141,10 +141,9 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, string& newConfig)
  */
 void plugin_shutdown(PLUGIN_HANDLE *handle)
 {
-	Asset *asset = (Asset *)handle;
-	delete asset;
+	CustomAsset *customasset = (CustomAsset *)handle;
+	delete customasset;
 }
 
 // End of extern "C"
 };
-
