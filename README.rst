@@ -1,8 +1,8 @@
 ==========================================
-Fledge custom asset notification delivery plugin
+Fledge customasset notification delivery plugin
 ==========================================
 
-A simple Custom Asset notification delivery plugin.
+A simple CustomAsset notification delivery plugin.
 
 
 Installation

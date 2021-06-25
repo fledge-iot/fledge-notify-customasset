@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch           
  */
 #include "customasset.h"
 #include <logger.h>
@@ -44,7 +44,7 @@ CustomAsset::~CustomAsset()
  */
 void CustomAsset::notify(const string& notificationName, const string& triggerReason, const string& message)
 {
-	vector<Datapoint *>	datapoints;
+vector<Datapoint *>	datapoints;
 
 	if (!m_ingest)
 	{
@@ -52,7 +52,7 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	}
 
 	DatapointValue dpv1(m_description);
-	datapoints.push_back(new Datapoint("description", dpv1));
+	datapoints.push_back(new Datapoint("description", dpv1)); 
 
 	Document doc;
 	doc.Parse(triggerReason.c_str());

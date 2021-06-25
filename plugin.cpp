@@ -1,5 +1,5 @@
 /*
- * Fledge "asset" notification plugin.
+ * Fledge "customasset" notification plugin.
  *
  * Copyright (c) 2019 Dianomic Systems
  *
@@ -19,17 +19,17 @@
 #define PLUGIN_NAME "customasset"
 
 const char * default_config = QUOTE({
-	"plugin" : {
-		"description" : "Asset notification plugin",
+	"plugin" : { 
+		"description" : "CustomAsset notification plugin",
 		"type" : "string",
 		"default" : PLUGIN_NAME,
 		"readonly" : "true" },
-	"asset" : {
-		"description" : "The asset name to create for the notification",
+	"customasset" : {
+		"description" : "The customasset name to create for the notification",
 		"type" : "string",
 		"default" : "event",
 		"order" : "1",
-		"displayName" : "Asset"
+		"displayName" : "CustomAsset"
 		},
 	"description" : {
 		"description" : "The event description to add",
@@ -39,10 +39,10 @@ const char * default_config = QUOTE({
 		"displayName" : "Description"
 		},
 	"enable": {
-		"description": "A switch that can be used to enable or disable delivery of the asset notification plugin.",
+		"description": "A switch that can be used to enable or disable delivery of the customasset notification plugin.",
 		"type": "boolean",
 		"displayName" : "Enabled",
-		"default": "false",
+		"default": "false", 
 		"order" : "3" }
 	});
 
@@ -86,7 +86,7 @@ PLUGIN_INFORMATION *plugin_info()
 PLUGIN_HANDLE plugin_init(ConfigCategory* config)
 {
 	CustomAsset *customasset = new CustomAsset(config);
-
+	
 	return (PLUGIN_HANDLE)customasset;
 }
 
@@ -105,7 +105,7 @@ bool plugin_deliver(PLUGIN_HANDLE handle,
                     const std::string& triggerReason,
                     const std::string& message)
 {
-	Logger::getLogger()->info("Asset notification plugin_deliver(): deliveryName=%s, notificationName=%s, triggerReason=%s, message=%s",
+	Logger::getLogger()->info("CustomAsset notification plugin_deliver(): deliveryName=%s, notificationName=%s, triggerReason=%s, message=%s",
 							deliveryName.c_str(), notificationName.c_str(), triggerReason.c_str(), message.c_str());
 	CustomAsset *customasset = (CustomAsset *)handle;
 	customasset->notify(notificationName, triggerReason, message);
@@ -113,13 +113,13 @@ bool plugin_deliver(PLUGIN_HANDLE handle,
 }
 
 /**
- * Register a callback function used to ingest an asset to the Fledge buffer
+ * Register a callback function used to ingest an customasset to the Fledge buffer
  */
 void plugin_registerIngest(PLUGIN_HANDLE *handle, void *func, void *data)
 {
-	Logger::getLogger()->info("Asset notification plugin: plugin_registerIngrest()");
+	Logger::getLogger()->info("CustomAsset notification plugin: plugin_registerIngrest()");
 	CustomAsset *customasset = (CustomAsset *)handle;
-
+	
 	customasset->registerIngest((FuncPtr)func, data);
 	return;
 }
@@ -129,9 +129,9 @@ void plugin_registerIngest(PLUGIN_HANDLE *handle, void *func, void *data)
  */
 void plugin_reconfigure(PLUGIN_HANDLE *handle, string& newConfig)
 {
-	Logger::getLogger()->info("Asset notification plugin: plugin_reconfigure()");
+	Logger::getLogger()->info("CustomAsset notification plugin: plugin_reconfigure()");
 	CustomAsset *customasset = (CustomAsset *)handle;
-
+	
 	customasset->reconfigure(newConfig);
 	return;
 }
@@ -147,3 +147,4 @@ void plugin_shutdown(PLUGIN_HANDLE *handle)
 
 // End of extern "C"
 };
+
