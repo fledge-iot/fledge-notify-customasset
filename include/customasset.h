@@ -5,9 +5,9 @@
 #include <logger.h>
 #include <storage_client.h>
 
-#include <client_https.hpp>
-#include <client_http.hpp>
-using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
+// #include <client_https.hpp>
+ #include <client_http.hpp>
+ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -38,11 +38,12 @@ class CustomAsset {
 		const std::string getAssetReading();
 		void handleUnexpectedResponse(const char *operation, const std::string& responseCode,  const std::string& payload);
 
+		//HttpClient *m_client;
 		HttpClient *m_client;
-		//HttpClient m_client;
 		std::string	m_customasset;
 		std::string	m_description;
 		std::string	m_store;
+		std::string	m_json_config;
 		FuncPtr		m_ingest;
 		void		*m_data;
 };

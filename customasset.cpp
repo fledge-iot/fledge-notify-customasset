@@ -12,15 +12,9 @@
 #include <reading.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
-#include <client_https.hpp>
-#include <client_http.hpp>
 
 using namespace std;
 using namespace rapidjson;
-
-using HttpsClient = SimpleWeb::Client<SimpleWeb::HTTPS>;
-using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
-
 
 const char * sample_store = QUOTE({
 	"sinusoid" : {
@@ -47,11 +41,18 @@ CustomAsset::CustomAsset(ConfigCategory *category)
 {
 	m_customasset = category->getValue("customasset");
 	m_description = category->getValue("description");
+	m_json_config = category->getValue("jsonconfig");
 	// TODO We have no access to the storage layer
 	m_ingest = NULL;
 
 	// FIXME: add error handling
-	m_client = new HttpClient("localhost:8081");
+	try{
+			m_client = new HttpClient("localhost:8081");
+			auto res = m_client->request("GET", "/fledge/audit?limit=1");
+	} catch (exception& ex) {
+			Logger::getLogger()->error("Failed to connect to server: %s", ex.what());
+			throw;
+	}
 }
 
 /**
@@ -127,25 +128,38 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	//string utcnow_str;
 	//utcnow_str = ss.str();
 
-	//m_store = "store";
+	// Should be probably taken to constructor to only get config once and save them in vectors or something
+	Logger::getLogger()->warn("Config JSON: %s", m_json_config.c_str());
+	Document configDoc;
+	configDoc.Parse(m_json_config.c_str());
+	Logger::getLogger()->warn("Get Array");
+	const rapidjson::Value& sub = configDoc["subscriptions"];
 
+	Logger::getLogger()->warn("Start for ");
+	for (rapidjson::Value::ConstValueIterator itr = sub.Begin(); itr != sub.End(); ++itr)
+    {
+			Logger::getLogger()->warn("Get Object of array ");
+	     const rapidjson::Value& item = *itr;
+	       for (rapidjson::Value::ConstMemberIterator itr2 = item.MemberBegin(); itr2 != item.MemberEnd(); ++itr2)
+	       {
+					 	Logger::getLogger()->warn("Key: %s",itr2->name.GetString());
+					 	if(itr2->value.IsString()){
+							Logger::getLogger()->warn("Key: %s Value: %s",itr2->name.GetString(), itr2->value.GetString());
+						}else{
+							const rapidjson::Value& datapoints = item[itr2->name.GetString()];
+							for (SizeType i = 0; i < datapoints.Size(); i++){
+								Logger::getLogger()->warn("Key: datapoints Value: %s",datapoints[i].GetString());
+							}
+						}
+				 }
+ 	 }
+	//---------------------------------------------------------------------------------------------
 
-
-
-/*HttpClient client("localhost:8080");
-	try {
-		client.request("POST", resource, payload);
-	} catch (const exception& e) {
-		Logger::getLogger()->error("sendPayload: exception %s sending reading data to interested party %s", e.what(), url.c_str());
-	}
-*/
-
-
-	//m_store = getAssetReading();
+	m_store = getAssetReading();
 
 	Logger::getLogger()->warn("Done getAssetReading");
 
-	m_store = ss.str();
+	//m_store = ss.str();
 
 	DatapointValue dpv5(m_store);
 	datapoints.push_back(new Datapoint("store", dpv5));
@@ -178,34 +192,35 @@ const std::string CustomAsset::getAssetReading()
 
 			Logger::getLogger()->warn("Hello getAssetReading");
 
-			//request("GET", "/fledge/asset/sinusoid/sinusoid?limit=1");
-			//rl = "/fledge/asset/sinusoid/sinusoid?limit=1";
-			snprintf(url, sizeof(url), "/fledge/asset/%s?limit=1", "sinusoid");
-			//snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld", readingId, count);
+			snprintf(url, sizeof(url), "/fledge/asset/%s?limit=1", "opcuajob");
 
 			Logger::getLogger()->warn("url: %s", url);
 
 			auto res = m_client->request("GET", url);
 			if (res->status_code.compare("200 OK") == 0)
 			{
+				Logger::getLogger()->warn("HTTP CODE 200");
 				ostringstream resultPayload;
 				resultPayload << res->content.rdbuf();
 				std::string result = resultPayload.str();
 				Logger::getLogger()->warn("result: %s", result.c_str());
 				return result;
 			}
+
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
-		} catch (exception& ex) {
+
+	} catch (exception& ex) {
 			Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
 			throw;
-		} catch (exception* ex) {
+
+	} catch (exception* ex) {
 			Logger::getLogger()->error("Failed to fetch asset: %s", ex->what());
 			delete ex;
 			throw exception();
 	}
-	return "ERROR";
+
 }
 
 /**

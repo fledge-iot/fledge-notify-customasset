@@ -19,7 +19,7 @@
 #define PLUGIN_NAME "customasset"
 
 const char * default_config = QUOTE({
-	"plugin" : { 
+	"plugin" : {
 		"description" : "CustomAsset notification plugin",
 		"type" : "string",
 		"default" : PLUGIN_NAME,
@@ -32,18 +32,25 @@ const char * default_config = QUOTE({
 		"displayName" : "CustomAsset"
 		},
 	"description" : {
-		"description" : "The event description to add",
-		"type" : "string",
-		"default" : "Notification alert",
-		"order" : "2",
-		"displayName" : "Description"
+			"description" : "The event description to add",
+			"type" : "string",
+			"default" : "Notification alert",
+			"order" : "2",
+			"displayName" : "Description"
+			},
+	"jsonconfig" : {
+		"description" : "Add assets and datapoint the dilvery sevice needs to consider",
+		"type" : "JSON",
+		"default" : "{ \"subscriptions\" : [{\"assetname\" : \"sinusoid\" , \"datapoints\" : [\"sinusoid\"]},{\"assetname\" : \"opcuajob\" , \"datapoints\" : [\"opcuajob\"]}]}",
+		"displayName" : "JSON Configuration",
+		"order" : "3"
 		},
 	"enable": {
 		"description": "A switch that can be used to enable or disable delivery of the customasset notification plugin.",
 		"type": "boolean",
 		"displayName" : "Enabled",
-		"default": "false", 
-		"order" : "3" }
+		"default": "false",
+		"order" : "4" }
 	});
 
 
@@ -86,7 +93,7 @@ PLUGIN_INFORMATION *plugin_info()
 PLUGIN_HANDLE plugin_init(ConfigCategory* config)
 {
 	CustomAsset *customasset = new CustomAsset(config);
-	
+
 	return (PLUGIN_HANDLE)customasset;
 }
 
@@ -119,7 +126,7 @@ void plugin_registerIngest(PLUGIN_HANDLE *handle, void *func, void *data)
 {
 	Logger::getLogger()->info("CustomAsset notification plugin: plugin_registerIngrest()");
 	CustomAsset *customasset = (CustomAsset *)handle;
-	
+
 	customasset->registerIngest((FuncPtr)func, data);
 	return;
 }
@@ -131,7 +138,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, string& newConfig)
 {
 	Logger::getLogger()->info("CustomAsset notification plugin: plugin_reconfigure()");
 	CustomAsset *customasset = (CustomAsset *)handle;
-	
+
 	customasset->reconfigure(newConfig);
 	return;
 }
@@ -147,4 +154,3 @@ void plugin_shutdown(PLUGIN_HANDLE *handle)
 
 // End of extern "C"
 };
-
