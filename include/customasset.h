@@ -6,8 +6,8 @@
 #include <storage_client.h>
 
 // #include <client_https.hpp>
- #include <client_http.hpp>
- using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
+#include <client_http.hpp>
+using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -35,8 +35,11 @@ class CustomAsset {
 			m_data = data;
 		};
 	private:
-		const std::string getAssetReading();
+		const std::string getAssetReading(const std::string& assetName);
 		void handleUnexpectedResponse(const char *operation, const std::string& responseCode,  const std::string& payload);
+		const std::string getUtcDateTime(struct timeval value);
+		const std::string getUtcDateTimeNow();
+		std::string escape_json(const std::string& s);
 
 		//HttpClient *m_client;
 		HttpClient *m_client;

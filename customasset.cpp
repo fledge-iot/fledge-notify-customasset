@@ -12,6 +12,10 @@
 #include <reading.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
+#include <string_utils.h>
+#include <sstream>
+#include <iomanip>
+
 
 using namespace std;
 using namespace rapidjson;
@@ -108,26 +112,6 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	DatapointValue dpv4(notificationName);
 	datapoints.push_back(new Datapoint("rule", dpv4));
 
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	#define DATE_TIME_BUFFER_LEN 52
-	char date_time[DATE_TIME_BUFFER_LEN];
-	char microsec[10];
-
-	struct tm utcnow;
-	gmtime_r(&now.tv_sec, &utcnow);
-
-	std::strftime(date_time, sizeof(date_time), "%Y-%m-%d %H:%M:%S", &utcnow);
-	snprintf(microsec, sizeof(microsec), ".%06lu", now.tv_usec);
-
-	ostringstream ss;
-	ss << date_time << microsec << "+00:00";
-
-
-	//string utcnow_str;
-	//utcnow_str = ss.str();
-
 	// Should be probably taken to constructor to only get config once and save them in vectors or something
 	Logger::getLogger()->warn("Config JSON: %s", m_json_config.c_str());
 	Document configDoc;
@@ -137,27 +121,36 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 
 	Logger::getLogger()->warn("Start for ");
 	for (rapidjson::Value::ConstValueIterator itr = sub.Begin(); itr != sub.End(); ++itr)
-    {
-			Logger::getLogger()->warn("Get Object of array ");
-	     const rapidjson::Value& item = *itr;
-	       for (rapidjson::Value::ConstMemberIterator itr2 = item.MemberBegin(); itr2 != item.MemberEnd(); ++itr2)
-	       {
-					 	Logger::getLogger()->warn("Key: %s",itr2->name.GetString());
-					 	if(itr2->value.IsString()){
-							Logger::getLogger()->warn("Key: %s Value: %s",itr2->name.GetString(), itr2->value.GetString());
-						}else{
-							const rapidjson::Value& datapoints = item[itr2->name.GetString()];
-							for (SizeType i = 0; i < datapoints.Size(); i++){
-								Logger::getLogger()->warn("Key: datapoints Value: %s",datapoints[i].GetString());
-							}
-						}
-				 }
- 	 }
+  {
+		Logger::getLogger()->warn("Get Object of array ");
+	  const rapidjson::Value& item = *itr;
+	  for (rapidjson::Value::ConstMemberIterator itr2 = item.MemberBegin(); itr2 != item.MemberEnd(); ++itr2)
+	  {
+			Logger::getLogger()->warn("Key: %s",itr2->name.GetString());
+			if(itr2->value.IsString())
+			{
+				Logger::getLogger()->warn("Key: %s Value: %s",itr2->name.GetString(), itr2->value.GetString());
+			}
+			else
+			{
+				const rapidjson::Value& datapoints = item[itr2->name.GetString()];
+				for (SizeType i = 0; i < datapoints.Size(); i++)
+				{
+					Logger::getLogger()->warn("Key: datapoints Value: %s",datapoints[i].GetString());
+				}
+			}
+		}
+ 	}
 	//---------------------------------------------------------------------------------------------
 
-	m_store = getAssetReading();
+	Logger::getLogger()->warn("Befor HTTP: %s", getUtcDateTimeNow().c_str());
 
-	Logger::getLogger()->warn("Done getAssetReading");
+	m_store = escape_json(getAssetReading("opcuajob"));
+
+	Logger::getLogger()->warn("After HTTP: %s", getUtcDateTimeNow().c_str());
+
+
+	Logger::getLogger()->warn("Done getAssetReading, m_store: %s", m_store.c_str());
 
 	//m_store = ss.str();
 
@@ -166,7 +159,7 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 
 	Reading customasset(m_customasset, datapoints);
 
-	Logger::getLogger()->info("CustomAsset notification: %s", customasset.toJSON().c_str());
+	Logger::getLogger()->warn("CustomAsset notification: %s", customasset.toJSON().c_str());
 
 	(*m_ingest)(m_data, &customasset);
 }
@@ -181,28 +174,30 @@ void CustomAsset::reconfigure(const string& newConfig)
 	ConfigCategory category("new", newConfig);
 	m_customasset = category.getValue("customasset");
 	m_description = category.getValue("description");
+	m_json_config = category.getValue("jsonconfig");
 }
 
 
 
-const std::string CustomAsset::getAssetReading()
+const std::string CustomAsset::getAssetReading(const std::string& assetName)
 {
 	try {
-			char url[256];
+			//char url[256];
 
-			Logger::getLogger()->warn("Hello getAssetReading");
+			//Logger::getLogger()->warn("Hello getAssetReading");
 
-			snprintf(url, sizeof(url), "/fledge/asset/%s?limit=1", "opcuajob");
+			//snprintf(url, sizeof(url), "/fledge/asset/%s?limit=1", "opcuajob");
+			//Logger::getLogger()->warn("url: %s", url);
 
-			Logger::getLogger()->warn("url: %s", url);
-
-			auto res = m_client->request("GET", url);
+			Logger::getLogger()->warn("Befor REST: %s", getUtcDateTimeNow().c_str());
+			auto res = m_client->request("GET", "/fledge/asset/" + urlEncode(assetName) + "?limit=1");
 			if (res->status_code.compare("200 OK") == 0)
 			{
 				Logger::getLogger()->warn("HTTP CODE 200");
 				ostringstream resultPayload;
 				resultPayload << res->content.rdbuf();
 				std::string result = resultPayload.str();
+				Logger::getLogger()->warn("After REST: %s", getUtcDateTimeNow().c_str());
 				Logger::getLogger()->warn("result: %s", result.c_str());
 				return result;
 			}
@@ -210,17 +205,11 @@ const std::string CustomAsset::getAssetReading()
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
-
 	} catch (exception& ex) {
 			Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
 			throw;
-
-	} catch (exception* ex) {
-			Logger::getLogger()->error("Failed to fetch asset: %s", ex->what());
-			delete ex;
-			throw exception();
 	}
-
+	return "{}";
 }
 
 /**
@@ -247,4 +236,73 @@ void CustomAsset::handleUnexpectedResponse(const char *operation, const std::str
 	{
 		Logger::getLogger()->error("%s completed with result %s", operation, responseCode.c_str());
 	}
+}
+
+const std::string CustomAsset::getUtcDateTimeNow()
+{
+	struct timeval now;
+	gettimeofday(&now, NULL);
+
+	//return getUtcDateTime(now);
+
+	#define DATE_TIME_BUFFER_LEN 52
+	char date_time[DATE_TIME_BUFFER_LEN];
+	char microsec[10];
+
+	struct tm utcnow;
+	gmtime_r(&now.tv_sec, &utcnow);
+
+	std::strftime(date_time, sizeof(date_time), "%Y-%m-%d %H:%M:%S", &utcnow);
+	snprintf(microsec, sizeof(microsec), ".%06lu", now.tv_usec);
+
+	ostringstream ss;
+	ss << date_time << microsec << "+00:00";
+
+	return ss.str();
+}
+
+const std::string CustomAsset::getUtcDateTime(struct timeval value)
+{
+
+	#define DATE_TIME_BUFFER_LEN 52
+	char date_time[DATE_TIME_BUFFER_LEN];
+	char microsec[10];
+
+	struct tm utcnow;
+	gmtime_r(&value.tv_sec, &utcnow);
+
+	std::strftime(date_time, sizeof(date_time), "%Y-%m-%d %H:%M:%S", &utcnow);
+	snprintf(microsec, sizeof(microsec), ".%06lu", value.tv_usec);
+
+	ostringstream ss;
+	ss << date_time << microsec << "+00:00";
+
+	return ss.str();
+}
+
+std::string CustomAsset::escape_json(const std::string &s)
+{
+	std::ostringstream o;
+	for (auto c = s.cbegin(); c != s.cend(); c++)
+	{
+		switch (*c)
+		{
+			case '"': o << "\\\""; break;
+			case '\\': o << "\\\\"; break;
+			case '\b': o << "\\b"; break;
+			case '\f': o << "\\f"; break;
+			case '\n': o << "\\n"; break;
+			case '\r': o << "\\r"; break;
+			case '\t': o << "\\t"; break;
+			default:
+				if ('\x00' <= *c && *c <= '\x1f') {
+					o << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)*c;
+				}
+				else
+				{
+					o << *c;
+				}
+		}
+	}
+	return o.str();
 }
