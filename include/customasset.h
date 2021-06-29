@@ -9,6 +9,7 @@
 #include <client_http.hpp>
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
+
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
 #define TO_STRING_(...) #__VA_ARGS__
@@ -40,13 +41,15 @@ class CustomAsset {
 		const std::string getUtcDateTime(struct timeval value);
 		const std::string getUtcDateTimeNow();
 		std::string escape_json(const std::string& s);
+		const std::vector<std::string> getAssetNamesConfig();
+		const std::vector<std::string> getAssetDatapointsConfig(const std::string &assetName);
 
-		//HttpClient *m_client;
 		HttpClient *m_client;
 		std::string	m_customasset;
 		std::string	m_description;
 		std::string	m_store;
 		std::string	m_json_config;
+		std::vector<std::string> assetNames;
 		FuncPtr		m_ingest;
 		void		*m_data;
 };

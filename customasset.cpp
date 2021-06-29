@@ -49,7 +49,9 @@ CustomAsset::CustomAsset(ConfigCategory *category)
 	// TODO We have no access to the storage layer
 	m_ingest = NULL;
 
-	// FIXME: add error handling
+	//Get assetNames
+	assetNames = getAssetNamesConfig();
+
 	try{
 			m_client = new HttpClient("localhost:8081");
 			auto res = m_client->request("GET", "/fledge/audit?limit=1");
@@ -112,45 +114,36 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	DatapointValue dpv4(notificationName);
 	datapoints.push_back(new Datapoint("rule", dpv4));
 
-	// Should be probably taken to constructor to only get config once and save them in vectors or something
-	Logger::getLogger()->warn("Config JSON: %s", m_json_config.c_str());
-	Document configDoc;
-	configDoc.Parse(m_json_config.c_str());
-	Logger::getLogger()->warn("Get Array");
-	const rapidjson::Value& sub = configDoc["subscriptions"];
-
-	Logger::getLogger()->warn("Start for ");
-	for (rapidjson::Value::ConstValueIterator itr = sub.Begin(); itr != sub.End(); ++itr)
-  {
-		Logger::getLogger()->warn("Get Object of array ");
-	  const rapidjson::Value& item = *itr;
-	  for (rapidjson::Value::ConstMemberIterator itr2 = item.MemberBegin(); itr2 != item.MemberEnd(); ++itr2)
-	  {
-			Logger::getLogger()->warn("Key: %s",itr2->name.GetString());
-			if(itr2->value.IsString())
-			{
-				Logger::getLogger()->warn("Key: %s Value: %s",itr2->name.GetString(), itr2->value.GetString());
-			}
-			else
-			{
-				const rapidjson::Value& datapoints = item[itr2->name.GetString()];
-				for (SizeType i = 0; i < datapoints.Size(); i++)
-				{
-					Logger::getLogger()->warn("Key: datapoints Value: %s",datapoints[i].GetString());
+	string readings;
+	rapidjson::Document tempDoc;
+	rapidjson::Document jsonDoc;
+	jsonDoc.SetObject();
+	rapidjson::Value tempReadingArray(rapidjson::kArrayType);
+	rapidjson::Document::AllocatorType& allocator = jsonDoc.GetAllocator();
+	for(std::size_t i = 0; i < assetNames.size(); ++i) {
+    readings = getAssetReading(assetNames[i]);
+		tempDoc.Parse<0>(readings.c_str());
+		if(tempDoc.IsArray()){
+			if(tempDoc.Size()==1){
+				if(tempDoc[0].IsObject()){
+						tempReadingArray.PushBack(tempDoc[0], allocator);
+				}
+			}else{
+				for(SizeType i = 0; i < tempDoc.Size(); i++){
+					tempReadingArray.PushBack(tempDoc[i], allocator);
 				}
 			}
 		}
- 	}
-	//---------------------------------------------------------------------------------------------
+	}
 
-	Logger::getLogger()->warn("Befor HTTP: %s", getUtcDateTimeNow().c_str());
+	jsonDoc.AddMember("readings", tempReadingArray, allocator);
+	rapidjson::StringBuffer strbuf;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+	jsonDoc.Accept(writer);
 
-	m_store = escape_json(getAssetReading("opcuajob"));
+	const char *jsonString = strbuf.GetString();
 
-	Logger::getLogger()->warn("After HTTP: %s", getUtcDateTimeNow().c_str());
-
-
-	Logger::getLogger()->warn("Done getAssetReading, m_store: %s", m_store.c_str());
+	m_store = escape_json(jsonString);
 
 	//m_store = ss.str();
 
@@ -158,8 +151,6 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	datapoints.push_back(new Datapoint("store", dpv5));
 
 	Reading customasset(m_customasset, datapoints);
-
-	Logger::getLogger()->warn("CustomAsset notification: %s", customasset.toJSON().c_str());
 
 	(*m_ingest)(m_data, &customasset);
 }
@@ -175,6 +166,7 @@ void CustomAsset::reconfigure(const string& newConfig)
 	m_customasset = category.getValue("customasset");
 	m_description = category.getValue("description");
 	m_json_config = category.getValue("jsonconfig");
+	assetNames = getAssetNamesConfig();
 }
 
 
@@ -183,25 +175,17 @@ const std::string CustomAsset::getAssetReading(const std::string& assetName)
 {
 	try {
 			//char url[256];
-
 			//Logger::getLogger()->warn("Hello getAssetReading");
-
 			//snprintf(url, sizeof(url), "/fledge/asset/%s?limit=1", "opcuajob");
 			//Logger::getLogger()->warn("url: %s", url);
-
-			Logger::getLogger()->warn("Befor REST: %s", getUtcDateTimeNow().c_str());
 			auto res = m_client->request("GET", "/fledge/asset/" + urlEncode(assetName) + "?limit=1");
 			if (res->status_code.compare("200 OK") == 0)
 			{
-				Logger::getLogger()->warn("HTTP CODE 200");
 				ostringstream resultPayload;
 				resultPayload << res->content.rdbuf();
 				std::string result = resultPayload.str();
-				Logger::getLogger()->warn("After REST: %s", getUtcDateTimeNow().c_str());
-				Logger::getLogger()->warn("result: %s", result.c_str());
 				return result;
 			}
-
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
@@ -209,7 +193,6 @@ const std::string CustomAsset::getAssetReading(const std::string& assetName)
 			Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
 			throw;
 	}
-	return "{}";
 }
 
 /**
@@ -305,4 +288,35 @@ std::string CustomAsset::escape_json(const std::string &s)
 		}
 	}
 	return o.str();
+}
+
+const std::vector<std::string> CustomAsset::getAssetNamesConfig()
+{
+	std::vector<std::string> assetNames;
+	Document configDoc;
+	configDoc.Parse(m_json_config.c_str());
+
+	for (Value::ConstMemberIterator itr = 	configDoc.MemberBegin();itr != 	configDoc.MemberEnd(); ++itr)
+  {
+		assetNames.push_back(itr->name.GetString());
+ 	}
+	return assetNames;
+}
+
+const std::vector<std::string> CustomAsset::getAssetDatapointsConfig(const std::string &assetName)
+{
+	std::vector<std::string> datapointNames;
+	Document configDoc;
+	configDoc.Parse(m_json_config.c_str());
+	if(configDoc.HasMember(assetName.c_str()))
+	{
+		const Value& data = configDoc[assetName.c_str()];
+		for (SizeType i = 0; i < data.Size(); i++) // Uses SizeType instead of size_t
+		{
+      datapointNames.push_back(data[i].GetString());
+		}
+	}else{
+		return {};
+	}
+	return datapointNames;
 }
