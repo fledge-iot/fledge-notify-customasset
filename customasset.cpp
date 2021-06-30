@@ -207,7 +207,7 @@ const std::string CustomAsset::getAssetReading(const std::string& assetName)
 			Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
 			throw;
 	}
-	return "{}"
+	return "{}";
 }
 
 /**
