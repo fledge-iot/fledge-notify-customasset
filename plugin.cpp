@@ -1,12 +1,25 @@
-/*
- * Fledge "customasset" notification plugin.
+/**
+ * Fledge Delta notification rule plugin
  *
- * Copyright (c) 2019 Dianomic Systems
+ * Copyright (c) 2021 ACDP
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Sebastian Kropatschek, Thorsten Steuer
  */
+
+/***********************************************************************
+* DISCLAIMER:
+*
+* All sample code is provided by ACDP for illustrative purposes only.
+* These examples have not been thoroughly tested under all conditions.
+* ACDP provides no guarantee nor implies any reliability,
+* serviceability, or function of these programs.
+* ALL PROGRAMS CONTAINED HEREIN ARE PROVIDED TO YOU "AS IS"
+* WITHOUT ANY WARRANTIES OF ANY KIND. ALL WARRANTIES INCLUDING
+* THE IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY
+* AND FITNESS FOR A PARTICULAR PURPOSE ARE EXPRESSLY DISCLAIMED.
+************************************************************************/
 
 #include <string>
 #include <plugin_api.h>
