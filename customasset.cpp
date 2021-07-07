@@ -24,7 +24,7 @@
 #include "customasset.h"
 #include <logger.h>
 #include <reading.h>
-#include <rapidjson/document.h>
+//#include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <string_utils.h>
 #include <sstream>
@@ -32,7 +32,7 @@
 
 
 using namespace std;
-using namespace rapidjson;
+//using namespace rapidjson;
 
 const char * sample_store = QUOTE({
 	"sinusoid" : {
@@ -107,6 +107,26 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	doc.Parse(triggerReason.c_str());
 	if (!doc.HasParseError())
 	{
+		if(doc.HasMember("asset"))
+		{
+			if (doc["asset"].IsString())
+			{
+				// Logger::getLogger()->debug("ISSTRING: Delivery PLUGIN reason: %s",doc["asset"].GetString());
+				DatapointValue dpv3(doc["asset"].GetString());
+				datapoints.push_back(new Datapoint("action", dpv3));
+			}
+			else if (doc["asset"].IsObject())
+			{
+				rapidjson::StringBuffer buffer;
+				rapidjson::Writer<StringBuffer> writer(buffer);
+				doc["asset"].Accept(writer);
+				std::string jsonString = buffer.GetString();
+				jsonString = escape_json(jsonString);
+				// Logger::getLogger()->debug("ISOBJECT: Delivery PLUGIN reason: %s",jsonString.c_str());
+				DatapointValue dpv3(jsonString);
+				datapoints.push_back(new Datapoint("action", dpv3));
+			}
+		}
 		if (doc.HasMember("reason"))
 		{
 			if (doc["reason"].IsString())
@@ -134,16 +154,25 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	jsonDoc.SetObject();
 	rapidjson::Value tempReadingArray(rapidjson::kArrayType);
 	rapidjson::Document::AllocatorType& allocator = jsonDoc.GetAllocator();
-	for(std::size_t i = 0; i < assetNames.size(); ++i) {
-    readings = getAssetReading(assetNames[i]);
+	for(std::size_t i = 0; i < assetNames.size(); ++i)
+	{
+		const std::vector<std::string> assetDatapoints = getAssetDatapointsConfig(assetNames[i]);
+	  readings = getAssetReading(assetNames[i]);
 		tempDoc.Parse<0>(readings.c_str());
-		if(tempDoc.IsArray()){
-			if(tempDoc.Size()==1){
-				if(tempDoc[0].IsObject()){
-						tempReadingArray.PushBack(tempDoc[0], allocator);
-				}
+		if(tempDoc.IsArray())
+		{
+			if(tempDoc.Size()==1)
+			{
+				rapidjson::Value& arrayEntry = tempDoc[0];
+				rapidjson::Value& reading = arrayEntry["reading"];
+				deleteUnwantedDatapoints(reading, assetDatapoints);
+				tempReadingArray.PushBack(tempDoc[0], allocator);
 			}else{
-				for(SizeType i = 0; i < tempDoc.Size(); i++){
+				for(SizeType i = 0; i < tempDoc.Size(); i++)
+				{
+					rapidjson::Value& arrayEntry = tempDoc[0];
+					rapidjson::Value& reading = arrayEntry["reading"];
+					deleteUnwantedDatapoints(reading, assetDatapoints);
 					tempReadingArray.PushBack(tempDoc[i], allocator);
 				}
 			}
@@ -151,11 +180,11 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	}
 
 	jsonDoc.AddMember("readings", tempReadingArray, allocator);
-	rapidjson::StringBuffer strbuf;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<StringBuffer> writer(buffer);
 	jsonDoc.Accept(writer);
 
-	const char *jsonString = strbuf.GetString();
+	const std::string jsonString = buffer.GetString();
 
 	m_store = escape_json(jsonString);
 
@@ -188,10 +217,6 @@ void CustomAsset::reconfigure(const string& newConfig)
 const std::string CustomAsset::getAssetReading(const std::string& assetName)
 {
 	try {
-			//char url[256];
-			//Logger::getLogger()->warn("Hello getAssetReading");
-			//snprintf(url, sizeof(url), "/fledge/asset/%s?limit=1", "opcuajob");
-			//Logger::getLogger()->warn("url: %s", url);
 			auto res = m_client->request("GET", "/fledge/asset/" + urlEncode(assetName) + "?limit=1");
 			if (res->status_code.compare("200 OK") == 0)
 			{
@@ -209,6 +234,7 @@ const std::string CustomAsset::getAssetReading(const std::string& assetName)
 	}
 	return "{}";
 }
+
 
 /**
  * Standard logging method for all interactions
@@ -334,4 +360,18 @@ const std::vector<std::string> CustomAsset::getAssetDatapointsConfig(const std::
 		return {};
 	}
 	return datapointNames;
+}
+
+void CustomAsset::deleteUnwantedDatapoints(Value &reading, const std::vector<std::string> assetDatapoints)
+{
+	for (Value::ConstMemberIterator itr = reading.MemberBegin(); itr != reading.MemberEnd();)
+	{
+		if (std::find(assetDatapoints.begin(), assetDatapoints.end(), itr->name.GetString()) != assetDatapoints.end())
+		{
+			itr++;
+		}else
+		{
+			itr = reading.EraseMember(itr);
+		}
+	}
 }

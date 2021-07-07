@@ -4,6 +4,8 @@
 #include <string>
 #include <logger.h>
 #include <storage_client.h>
+#include <rapidjson/document.h>
+using namespace rapidjson;
 
 // #include <client_https.hpp>
 #include <client_http.hpp>
@@ -43,6 +45,8 @@ class CustomAsset {
 		std::string escape_json(const std::string& s);
 		const std::vector<std::string> getAssetNamesConfig();
 		const std::vector<std::string> getAssetDatapointsConfig(const std::string &assetName);
+		const std::string getAssetDatapointReading(const std::string& assetName, const std::string& datapointName);
+		void deleteUnwantedDatapoints(Value &reading, const std::vector<std::string> assetDatapoints);
 
 		HttpClient *m_client;
 		std::string	m_customasset;
