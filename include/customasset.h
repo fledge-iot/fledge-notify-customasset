@@ -47,12 +47,17 @@ class CustomAsset {
 		const std::vector<std::string> getAssetDatapointsConfig(const std::string &assetName);
 		const std::string getAssetDatapointReading(const std::string& assetName, const std::string& datapointName);
 		void deleteUnwantedDatapoints(Value &reading, const std::vector<std::string> assetDatapoints);
+		void getAuthToken();
 
 		HttpClient *m_client;
 		std::string	m_customasset;
 		std::string	m_description;
 		std::string	m_store;
 		std::string	m_json_config;
+		std::string	password;
+		std::string	username;
+		std::string enableAuth;
+		std::string token;
 		std::vector<std::string> assetNames;
 		FuncPtr		m_ingest;
 		void		*m_data;

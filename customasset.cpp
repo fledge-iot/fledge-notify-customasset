@@ -63,6 +63,11 @@ CustomAsset::CustomAsset(ConfigCategory *category)
 	// TODO We have no access to the storage layer
 	m_ingest = NULL;
 
+	//get credentails
+	enableAuth = category->getValue("enableAuth");
+	password = category->getValue("password");
+	username = category->getValue("username");
+
 	//Get assetNames
 	assetNames = getAssetNamesConfig();
 
@@ -72,6 +77,10 @@ CustomAsset::CustomAsset(ConfigCategory *category)
 	} catch (exception& ex) {
 			Logger::getLogger()->error("Failed to connect to server: %s", ex.what());
 			throw;
+	}
+
+	if(enableAuth=="true"){
+		getAuthToken();
 	}
 }
 
@@ -148,6 +157,11 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	DatapointValue dpv4(notificationName);
 	datapoints.push_back(new Datapoint("rule", dpv4));
 
+	//Can't add in configuration call since REST call doesn'T work
+	// if(enableAuth=="true"){
+	// 	getAuthToken();
+	// }
+
 	string readings;
 	rapidjson::Document tempDoc;
 	rapidjson::Document jsonDoc;
@@ -209,30 +223,60 @@ void CustomAsset::reconfigure(const string& newConfig)
 	m_customasset = category.getValue("customasset");
 	m_description = category.getValue("description");
 	m_json_config = category.getValue("jsonconfig");
+	password = category.getValue("password");
+	username = category.getValue("username");
+	enableAuth = category.getValue("enableAuth");
 	assetNames = getAssetNamesConfig();
+	if(enableAuth=="true"){
+		getAuthToken();
+	}
 }
 
 
 
 const std::string CustomAsset::getAssetReading(const std::string& assetName)
 {
-	try {
-			auto res = m_client->request("GET", "/fledge/asset/" + urlEncode(assetName) + "?limit=1");
-			if (res->status_code.compare("200 OK") == 0)
-			{
+	if(enableAuth=="true"){
+		SimpleWeb::CaseInsensitiveMultimap header;
+		header.emplace("authorization ", this->token);
+		try {
+				auto res = m_client->request("GET", "/fledge/asset/" + urlEncode(assetName) + "?limit=1","",header);
+				if (res->status_code.compare("200 OK") == 0)
+				{
+					ostringstream resultPayload;
+					resultPayload << res->content.rdbuf();
+					std::string result = resultPayload.str();
+					return result;
+				}
 				ostringstream resultPayload;
 				resultPayload << res->content.rdbuf();
-				std::string result = resultPayload.str();
-				return result;
-			}
-			ostringstream resultPayload;
-			resultPayload << res->content.rdbuf();
-			handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
-	} catch (exception& ex) {
-			Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
-			throw;
+				handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
+		} catch (exception& ex) {
+				Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
+				throw;
+		}
+		return "{}";
+	}else{
+		try {
+				auto res = m_client->request("GET", "/fledge/asset/" + urlEncode(assetName) + "?limit=1");
+				if (res->status_code.compare("200 OK") == 0)
+				{
+					ostringstream resultPayload;
+					resultPayload << res->content.rdbuf();
+					std::string result = resultPayload.str();
+					return result;
+				}
+				ostringstream resultPayload;
+				resultPayload << res->content.rdbuf();
+				handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
+		} catch (exception& ex) {
+				Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
+				throw;
+		}
+		return "{}";
 	}
-	return "{}";
+
+return "{}";
 }
 
 
@@ -373,5 +417,20 @@ void CustomAsset::deleteUnwantedDatapoints(Value &reading, const std::vector<std
 		{
 			itr = reading.EraseMember(itr);
 		}
+	}
+}
+
+void CustomAsset::getAuthToken()
+{
+	std::string json_string = "{\"username\": \"" + this->username + "\",\"password\": \"" + this->password + "\"}";
+	auto res = m_client->request("POST", "/fledge/login", json_string);
+	std::ostringstream payload;
+	payload << res->content.rdbuf();
+	rapidjson::Document jsonDoc;
+	jsonDoc.Parse(payload.str().c_str());
+	if(jsonDoc.HasMember("token")){
+		this->token = jsonDoc["token"].GetString();
+	}else{
+		Logger::getLogger()->error("Authentication was unsuccesfull: %s", payload.str().c_str());
 	}
 }

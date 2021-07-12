@@ -63,7 +63,29 @@ const char * default_config = QUOTE({
 		"type": "boolean",
 		"displayName" : "Enabled",
 		"default": "false",
-		"order" : "4" }
+		"order" : "4"
+	},
+	"enableAuth": {
+		"description": "A switch that can be used to enable or disable authentication.",
+		"type": "boolean",
+		"displayName" : "Enable authentication",
+		"default": "false",
+		"order" : "5"
+	},
+	"username" : {
+		"description" : "User name for fledge instance",
+		"type" : "string",
+		"displayName" : "Username",
+		"order" : "6",
+		"default" : "max.mustermann"
+	},
+	"password" : {
+			"description" : "Password for fledge instance",
+			"type" : "string",
+			"displayName" : "Password",
+			"order" : "7",
+			"default" : "pass"
+	}
 	});
 
 
