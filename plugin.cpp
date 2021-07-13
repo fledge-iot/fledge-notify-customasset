@@ -81,7 +81,7 @@ const char * default_config = QUOTE({
 	},
 	"password" : {
 			"description" : "Password for fledge instance",
-			"type" : "string",
+			"type" : "password",
 			"displayName" : "Password",
 			"order" : "7",
 			"default" : "pass"
