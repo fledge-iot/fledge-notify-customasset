@@ -45,15 +45,21 @@ class CustomAsset {
 		std::string escape_json(const std::string& s);
 		const std::vector<std::string> getAssetNamesConfig();
 		const std::vector<std::string> getAssetDatapointsConfig(const std::string &assetName);
-		const std::string getAssetDatapointReading(const std::string& assetName, const std::string& datapointName);
+		const std::string getAssetDatapointReading(std::string& assetName, const std::string& datapointName);
 		void deleteUnwantedDatapoints(Value &reading, const std::vector<std::string> assetDatapoints);
 		void getAuthToken();
+		const std::string generateJsonReadingItem(const std::string& assetName, std::string reading, const std::string& timestamp, const std::vector<std::string>& assetDatapoints);
+		void createJsonReadingObject(const std::string& actionJsonItem, const std::string& assetName);
+		void appendJsonReadingObject(const std::string& actionJsonItem, const std::string& assetName);
+		const std::string getAliasNameConfig(const std::string& assetName, const std::string& assetDatapoint);
+		bool replace(std::string& str, const std::string& from, const std::string& to);
 
 		HttpClient *m_client;
 		std::string	m_customasset;
 		std::string	m_description;
 		std::string	m_store;
 		std::string	m_json_config;
+		std::string	json_string;
 		std::string	password;
 		std::string	username;
 		std::string enableAuth;
@@ -61,5 +67,6 @@ class CustomAsset {
 		std::vector<std::string> assetNames;
 		FuncPtr		m_ingest;
 		void		*m_data;
+		std::vector<std::string> assetDatapoints;
 };
 #endif

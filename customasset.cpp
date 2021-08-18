@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Sebastian Kropatschek, Thorsten Steuer
+ * Author:Thorsten Steuer, Sebastian Kropatschek
  */
 
 /***********************************************************************
@@ -24,31 +24,12 @@
 #include "customasset.h"
 #include <logger.h>
 #include <reading.h>
-//#include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <string_utils.h>
 #include <sstream>
 #include <iomanip>
 
-
 using namespace std;
-//using namespace rapidjson;
-
-const char * sample_store = QUOTE({
-	"sinusoid" : {
-		"sinusoid" : 0.5,
-		"timestamp" : "2019-01-01 10:00:00.123456+00:00"
-	},
-	"opcuajob" : {
-		"job" : "P60032085",
-		"timestamp" : "2019-01-01 10:00:00.123456+00:00"
-	},
-	"opcuaproductid" : {
-		"productid" : "S6866",
-		"timestamp" : "2019-01-01 10:00:00.123456+00:00"
-	}
-});
-
 
 /**
  * Construct a customasset notification plugin
@@ -157,30 +138,37 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	DatapointValue dpv4(notificationName);
 	datapoints.push_back(new Datapoint("rule", dpv4));
 
-	//Can't add in configuration call since REST call doesn'T work
-	// if(enableAuth=="true"){
-	// 	getAuthToken();
-	// }
-
 	string readings;
 	rapidjson::Document tempDoc;
 	rapidjson::Document jsonDoc;
 	jsonDoc.SetObject();
 	rapidjson::Value tempReadingArray(rapidjson::kArrayType);
 	rapidjson::Document::AllocatorType& allocator = jsonDoc.GetAllocator();
+	bool didAppendItem = false;
 	for(std::size_t i = 0; i < assetNames.size(); ++i)
 	{
-		const std::vector<std::string> assetDatapoints = getAssetDatapointsConfig(assetNames[i]);
+		assetDatapoints = getAssetDatapointsConfig(assetNames[i]);
 	  readings = getAssetReading(assetNames[i]);
 		tempDoc.Parse<0>(readings.c_str());
 		if(tempDoc.IsArray())
 		{
 			if(tempDoc.Size()==1)
 			{
+				//Logger::getLogger()->debug("NOTIFICATION");
 				rapidjson::Value& arrayEntry = tempDoc[0];
 				rapidjson::Value& reading = arrayEntry["reading"];
 				deleteUnwantedDatapoints(reading, assetDatapoints);
-				tempReadingArray.PushBack(tempDoc[0], allocator);
+				rapidjson::StringBuffer reading_buffer;
+				rapidjson::Writer<StringBuffer> reading_writer(reading_buffer);
+				reading.Accept(reading_writer);
+				std::string readingJson = reading_buffer.GetString();
+				readingJson= generateJsonReadingItem(assetNames[i], readingJson, arrayEntry["timestamp"].GetString(),assetDatapoints);
+				if(this->json_string.empty() == true){
+					createJsonReadingObject(readingJson, assetNames[i]);
+				}else{
+					appendJsonReadingObject(readingJson, assetNames[i]);
+					didAppendItem = true;
+				}
 			}else{
 				for(SizeType i = 0; i < tempDoc.Size(); i++)
 				{
@@ -192,17 +180,14 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 			}
 		}
 	}
+	//Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
 
-	jsonDoc.AddMember("readings", tempReadingArray, allocator);
-	rapidjson::StringBuffer buffer;
-	rapidjson::Writer<StringBuffer> writer(buffer);
-	jsonDoc.Accept(writer);
+	if(didAppendItem){
+		this->json_string += "}";
+	}
 
-	const std::string jsonString = buffer.GetString();
-
-	m_store = escape_json(jsonString);
-
-	//m_store = ss.str();
+	m_store = escape_json(json_string);
+	json_string = "";
 
 	DatapointValue dpv5(m_store);
 	datapoints.push_back(new Datapoint("store", dpv5));
@@ -383,6 +368,7 @@ const std::vector<std::string> CustomAsset::getAssetNamesConfig()
 
 	for (Value::ConstMemberIterator itr = 	configDoc.MemberBegin();itr != 	configDoc.MemberEnd(); ++itr)
   {
+		//Logger::getLogger()->debug("GETASSETNAMESCONFIG|Asset name: %s", itr->name.GetString());
 		assetNames.push_back(itr->name.GetString());
  	}
 	return assetNames;
@@ -395,10 +381,21 @@ const std::vector<std::string> CustomAsset::getAssetDatapointsConfig(const std::
 	configDoc.Parse(m_json_config.c_str());
 	if(configDoc.HasMember(assetName.c_str()))
 	{
-		const Value& data = configDoc[assetName.c_str()];
-		for (SizeType i = 0; i < data.Size(); i++) // Uses SizeType instead of size_t
-		{
-      datapointNames.push_back(data[i].GetString());
+		//Logger::getLogger()->debug("GETASSETDATAPOINTSSCONFIG|Has asset: %s", assetName.c_str());
+		if(configDoc[assetName.c_str()].IsArray()){
+			for (rapidjson::Value::ConstValueIterator itr = configDoc[assetName.c_str()].Begin(); itr != configDoc[assetName.c_str()].End(); ++itr){
+	    	const rapidjson::Value& datapoint = *itr;
+				if(datapoint.IsObject()){
+					for (rapidjson::Value::ConstMemberIterator itr2 = datapoint.MemberBegin(); itr2 != datapoint.MemberEnd(); ++itr2) {
+		        //Logger::getLogger()->debug("GETASSETDATAPOINTSSCONFIG|Datapoint Name:%s Alias:%s", itr2->name.GetString(), itr2->value.GetString());
+						datapointNames.push_back(itr2->name.GetString());
+					}
+				}else{
+					Logger::getLogger()->warn("Json Config has wrong format please submit objects in datapoint array");
+				}
+			}
+		}else{
+			Logger::getLogger()->warn("Json Config has wrong format please submit a array of objects");
 		}
 	}else{
 		return {};
@@ -420,6 +417,66 @@ void CustomAsset::deleteUnwantedDatapoints(Value &reading, const std::vector<std
 	}
 }
 
+const std::string CustomAsset::generateJsonReadingItem(const std::string& assetName,std::string reading, const std::string& timestamp, const std::vector<std::string>& assetDatapoints){
+	for(auto datapoint : assetDatapoints){
+		const std::string alias_name = getAliasNameConfig(assetName, datapoint);
+		//Logger::getLogger()->debug("ALIAS_NAME %s", alias_name.c_str());
+		replace(reading,datapoint,alias_name);
+	}
+	//Logger::getLogger()->debug("READING: %s TIMESTAMP: %s", reading.c_str(), timestamp.c_str());
+	//Remove from brackets from String
+	replace(reading,"{","");
+	replace(reading,"}","");
+	std::string actionJsonItem = "{"+ reading + ", " + "\"timestamp\": \""+ timestamp +"\"}";
+	return actionJsonItem;
+}
+
+void CustomAsset::createJsonReadingObject(const std::string& actionJsonItem, const std::string& assetName){
+	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
+	this->json_string += "{\""+ assetName +"\": ";
+	this->json_string += actionJsonItem;
+}
+
+void CustomAsset::appendJsonReadingObject(const std::string& actionJsonItem,const std::string& assetName)
+{
+	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
+	this->json_string += ", " + assetName +"\": ";
+	this->json_string += actionJsonItem;
+}
+
+const std::string CustomAsset::getAliasNameConfig(const std::string& assetName, const std::string& assetDatapoints){
+	std::string alias_name;
+	Document configDoc;
+	configDoc.Parse(m_json_config.c_str());
+	if(configDoc.HasMember(assetName.c_str())){
+		//Logger::getLogger()->debug("GETALIASNAMECONFIG|Has asset: %s", assetName.c_str());
+		if(configDoc[assetName.c_str()].IsArray()){
+			for (rapidjson::Value::ConstValueIterator itr = configDoc[assetName.c_str()].Begin(); itr != configDoc[assetName.c_str()].End(); ++itr){
+	    	const rapidjson::Value& datapoint = *itr;
+				if(datapoint.IsObject()){
+					for (rapidjson::Value::ConstMemberIterator itr2 = datapoint.MemberBegin(); itr2 != datapoint.MemberEnd(); ++itr2) {
+							if (assetDatapoints==itr2->name.GetString()){
+								if(itr2->value.IsString()){
+									alias_name = itr2->value.GetString();
+									if(alias_name.empty() == true){
+										alias_name=itr2->name.GetString();
+									}
+								}
+							}
+						}
+					}else{
+						Logger::getLogger()->warn("Json Config has wrong format please submit objects in datapoint array");
+					}
+				}
+			}else{
+				Logger::getLogger()->warn("Json Config has wrong format please submit a array of objects");
+			}
+	}else{
+		return "";
+	}
+	return alias_name;
+}
+
 void CustomAsset::getAuthToken()
 {
 	std::string json_string = "{\"username\": \"" + this->username + "\",\"password\": \"" + this->password + "\"}";
@@ -433,4 +490,12 @@ void CustomAsset::getAuthToken()
 	}else{
 		Logger::getLogger()->error("Authentication was unsuccesfull: %s", payload.str().c_str());
 	}
+}
+
+bool CustomAsset::replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
 }

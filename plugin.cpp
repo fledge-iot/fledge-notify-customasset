@@ -54,7 +54,7 @@ const char * default_config = QUOTE({
 	"jsonconfig" : {
 		"description" : "Add assets and datapoint the dilvery sevice needs to consider",
 		"type" : "JSON",
-		"default" : "{ \"sinusoid\" : [\"sinusoid\"],\"opcuajob\" : [\"job\"]}",
+		"default" : "{ \"asset_name\" : [{\"datapoint_name\": \"alias_name\"}],\"sinusoid\" : [{\"sinusoid\": \"cosinusoid\"}]}",
 		"displayName" : "JSON Configuration",
 		"order" : "3"
 		},
