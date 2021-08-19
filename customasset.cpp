@@ -440,7 +440,7 @@ void CustomAsset::createJsonReadingObject(const std::string& actionJsonItem, con
 void CustomAsset::appendJsonReadingObject(const std::string& actionJsonItem,const std::string& assetName)
 {
 	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
-	this->json_string += ", " + assetName +"\": ";
+	this->json_string += ", \"" + assetName +"\": ";
 	this->json_string += actionJsonItem;
 }
 
