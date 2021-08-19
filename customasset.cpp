@@ -144,7 +144,6 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	jsonDoc.SetObject();
 	rapidjson::Value tempReadingArray(rapidjson::kArrayType);
 	rapidjson::Document::AllocatorType& allocator = jsonDoc.GetAllocator();
-	bool didAppendItem = false;
 	for(std::size_t i = 0; i < assetNames.size(); ++i)
 	{
 		assetDatapoints = getAssetDatapointsConfig(assetNames[i]);
@@ -167,7 +166,6 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 					createJsonReadingObject(readingJson, assetNames[i]);
 				}else{
 					appendJsonReadingObject(readingJson, assetNames[i]);
-					didAppendItem = true;
 				}
 			}else{
 				for(SizeType i = 0; i < tempDoc.Size(); i++)
@@ -180,11 +178,9 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 			}
 		}
 	}
-	//Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
 
-	if(didAppendItem){
-		this->json_string += "}";
-	}
+	this->json_string += "}";
+	Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
 
 	m_store = escape_json(json_string);
 	json_string = "";
@@ -427,20 +423,20 @@ const std::string CustomAsset::generateJsonReadingItem(const std::string& assetN
 	//Remove from brackets from String
 	replace(reading,"{","");
 	replace(reading,"}","");
-	std::string actionJsonItem = "{"+ reading + ", " + "\"timestamp\": \""+ timestamp +"\"}";
+	std::string actionJsonItem = "{"+ reading + "," + "\"timestamp\":\""+ timestamp +"\"}";
 	return actionJsonItem;
 }
 
 void CustomAsset::createJsonReadingObject(const std::string& actionJsonItem, const std::string& assetName){
 	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
-	this->json_string += "{\""+ assetName +"\": ";
+	this->json_string += "{\""+ assetName +"\":";
 	this->json_string += actionJsonItem;
 }
 
 void CustomAsset::appendJsonReadingObject(const std::string& actionJsonItem,const std::string& assetName)
 {
 	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
-	this->json_string += ", \"" + assetName +"\": ";
+	this->json_string += ",\"" + assetName +"\":";
 	this->json_string += actionJsonItem;
 }
 
