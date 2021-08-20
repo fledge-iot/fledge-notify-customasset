@@ -53,6 +53,7 @@ class CustomAsset {
 		void appendJsonReadingObject(const std::string& actionJsonItem, const std::string& assetName);
 		const std::string getAliasNameConfig(const std::string& assetName, const std::string& assetDatapoint);
 		bool replace(std::string& str, const std::string& from, const std::string& to);
+		std::string createReadingForEmptyAssets(const std::string& assetName);
 
 		HttpClient *m_client;
 		std::string	m_customasset;

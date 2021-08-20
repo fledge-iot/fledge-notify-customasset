@@ -140,47 +140,54 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 
 	string readings;
 	rapidjson::Document tempDoc;
-	rapidjson::Document jsonDoc;
-	jsonDoc.SetObject();
-	rapidjson::Value tempReadingArray(rapidjson::kArrayType);
-	rapidjson::Document::AllocatorType& allocator = jsonDoc.GetAllocator();
+	std::string readingJson;
 	for(std::size_t i = 0; i < assetNames.size(); ++i)
 	{
 		assetDatapoints = getAssetDatapointsConfig(assetNames[i]);
 	  readings = getAssetReading(assetNames[i]);
-		tempDoc.Parse<0>(readings.c_str());
-		if(tempDoc.IsArray())
-		{
-			if(tempDoc.Size()==1)
-			{
-				//Logger::getLogger()->debug("NOTIFICATION");
-				rapidjson::Value& arrayEntry = tempDoc[0];
-				rapidjson::Value& reading = arrayEntry["reading"];
-				deleteUnwantedDatapoints(reading, assetDatapoints);
-				rapidjson::StringBuffer reading_buffer;
-				rapidjson::Writer<StringBuffer> reading_writer(reading_buffer);
-				reading.Accept(reading_writer);
-				std::string readingJson = reading_buffer.GetString();
-				readingJson= generateJsonReadingItem(assetNames[i], readingJson, arrayEntry["timestamp"].GetString(),assetDatapoints);
-				if(this->json_string.empty() == true){
-					createJsonReadingObject(readingJson, assetNames[i]);
-				}else{
-					appendJsonReadingObject(readingJson, assetNames[i]);
-				}
+		Logger::getLogger()->debug("ASSETNAME: %s READING: %s", assetNames[i].c_str(), readings.c_str());
+		//If reading is empty fledge returns empty array string
+		if(readings=="[]"){
+			Logger::getLogger()->debug("Assets is not available");
+			readingJson = createReadingForEmptyAssets(assetNames[i]);
+			Logger::getLogger()->debug("reading %s", readingJson.c_str());
+			if(this->json_string.empty() == true){
+				createJsonReadingObject(readingJson, assetNames[i]);
 			}else{
-				for(SizeType i = 0; i < tempDoc.Size(); i++)
+				appendJsonReadingObject(readingJson, assetNames[i]);
+			}
+		}else{
+			tempDoc.Parse<0>(readings.c_str());
+			if(tempDoc.IsArray())
+			{
+				if(tempDoc.Size()==1)
 				{
+					//Logger::getLogger()->debug("NOTIFICATION");
 					rapidjson::Value& arrayEntry = tempDoc[0];
 					rapidjson::Value& reading = arrayEntry["reading"];
 					deleteUnwantedDatapoints(reading, assetDatapoints);
-					tempReadingArray.PushBack(tempDoc[i], allocator);
+					rapidjson::StringBuffer reading_buffer;
+					rapidjson::Writer<StringBuffer> reading_writer(reading_buffer);
+					reading.Accept(reading_writer);
+					readingJson = reading_buffer.GetString();
+					readingJson= generateJsonReadingItem(assetNames[i], readingJson, arrayEntry["timestamp"].GetString(),assetDatapoints);
+					if(this->json_string.empty() == true){
+						createJsonReadingObject(readingJson, assetNames[i]);
+					}else{
+						appendJsonReadingObject(readingJson, assetNames[i]);
+					}
+				}else{
+					for(SizeType i = 0; i < tempDoc.Size(); i++)
+					{
+						//needs to be implemented if mor than one reading should be considerd
+					}
 				}
 			}
 		}
 	}
 
 	this->json_string += "}";
-	Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
+	//Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
 
 	m_store = escape_json(json_string);
 	json_string = "";
@@ -236,7 +243,7 @@ const std::string CustomAsset::getAssetReading(const std::string& assetName)
 				Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
 				throw;
 		}
-		return "{}";
+		return "[]";
 	}else{
 		try {
 				auto res = m_client->request("GET", "/fledge/asset/" + urlEncode(assetName) + "?limit=1");
@@ -254,10 +261,10 @@ const std::string CustomAsset::getAssetReading(const std::string& assetName)
 				Logger::getLogger()->error("Failed to fetch asset: %s", ex.what());
 				throw;
 		}
-		return "{}";
+		return "[]";
 	}
 
-return "{}";
+return "[]";
 }
 
 
@@ -285,48 +292,6 @@ void CustomAsset::handleUnexpectedResponse(const char *operation, const std::str
 	{
 		Logger::getLogger()->error("%s completed with result %s", operation, responseCode.c_str());
 	}
-}
-
-const std::string CustomAsset::getUtcDateTimeNow()
-{
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	//return getUtcDateTime(now);
-
-	#define DATE_TIME_BUFFER_LEN 52
-	char date_time[DATE_TIME_BUFFER_LEN];
-	char microsec[10];
-
-	struct tm utcnow;
-	gmtime_r(&now.tv_sec, &utcnow);
-
-	std::strftime(date_time, sizeof(date_time), "%Y-%m-%d %H:%M:%S", &utcnow);
-	snprintf(microsec, sizeof(microsec), ".%06lu", now.tv_usec);
-
-	ostringstream ss;
-	ss << date_time << microsec << "+00:00";
-
-	return ss.str();
-}
-
-const std::string CustomAsset::getUtcDateTime(struct timeval value)
-{
-
-	#define DATE_TIME_BUFFER_LEN 52
-	char date_time[DATE_TIME_BUFFER_LEN];
-	char microsec[10];
-
-	struct tm utcnow;
-	gmtime_r(&value.tv_sec, &utcnow);
-
-	std::strftime(date_time, sizeof(date_time), "%Y-%m-%d %H:%M:%S", &utcnow);
-	snprintf(microsec, sizeof(microsec), ".%06lu", value.tv_usec);
-
-	ostringstream ss;
-	ss << date_time << microsec << "+00:00";
-
-	return ss.str();
 }
 
 std::string CustomAsset::escape_json(const std::string &s)
@@ -423,7 +388,7 @@ const std::string CustomAsset::generateJsonReadingItem(const std::string& assetN
 	//Remove from brackets from String
 	replace(reading,"{","");
 	replace(reading,"}","");
-	std::string actionJsonItem = "{"+ reading + "," + "\"timestamp\":\""+ timestamp +"\"}";
+	std::string actionJsonItem = "{"+ reading + "," + "\"timestamp\":\""+ timestamp + " +0000\"}";
 	return actionJsonItem;
 }
 
@@ -438,6 +403,41 @@ void CustomAsset::appendJsonReadingObject(const std::string& actionJsonItem,cons
 	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
 	this->json_string += ",\"" + assetName +"\":";
 	this->json_string += actionJsonItem;
+}
+
+std::string CustomAsset::createReadingForEmptyAssets(const std::string& assetName){
+	std::string alias_name;
+	Document configDoc;
+	configDoc.Parse(m_json_config.c_str());
+	std::string reading;
+	if(configDoc[assetName.c_str()].IsArray()){
+		for (rapidjson::Value::ConstValueIterator itr = configDoc[assetName.c_str()].Begin(); itr != configDoc[assetName.c_str()].End(); ++itr){
+		const rapidjson::Value& datapoint = *itr;
+			if(datapoint.IsObject()){
+				for (rapidjson::Value::ConstMemberIterator itr2 = datapoint.MemberBegin(); itr2 != datapoint.MemberEnd(); ++itr2) {
+					if(itr2->value.IsString()){
+						alias_name = itr2->value.GetString();
+						if(alias_name.empty() == true){
+							alias_name=itr2->name.GetString();
+						}
+					}else{
+						Logger::getLogger()->warn("Submit a String as alias_name");
+					}
+					if(reading.empty()==true){
+						reading += "{\""+ alias_name + "\":\"\"";
+					}else{
+						reading +=",\""+ alias_name + "\":\"\"";
+					}
+				}
+			}else{
+				Logger::getLogger()->warn("Json Config has wrong format please submit objects in datapoint array");
+			}
+		}
+	}else{
+		Logger::getLogger()->warn("Json Config has wrong format please submit a array of objects");
+	}
+	reading += ",\"timestamp\":\"\"}";
+	return reading;
 }
 
 const std::string CustomAsset::getAliasNameConfig(const std::string& assetName, const std::string& assetDatapoints){
