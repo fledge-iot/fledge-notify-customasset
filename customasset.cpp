@@ -162,7 +162,7 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 			{
 				if(tempDoc.Size()==1)
 				{
-					//Logger::getLogger()->debug("NOTIFICATION");
+					Logger::getLogger()->debug("NOTIFICATION");
 					rapidjson::Value& arrayEntry = tempDoc[0];
 					rapidjson::Value& reading = arrayEntry["reading"];
 					deleteUnwantedDatapoints(reading, assetDatapoints);
@@ -381,26 +381,26 @@ void CustomAsset::deleteUnwantedDatapoints(Value &reading, const std::vector<std
 const std::string CustomAsset::generateJsonReadingItem(const std::string& assetName,std::string reading, const std::string& timestamp, const std::vector<std::string>& assetDatapoints){
 	for(auto datapoint : assetDatapoints){
 		const std::string alias_name = getAliasNameConfig(assetName, datapoint);
-		//Logger::getLogger()->debug("ALIAS_NAME %s", alias_name.c_str());
+		Logger::getLogger()->debug("ALIAS_NAME %s", alias_name.c_str());
 		replace(reading,datapoint,alias_name);
 	}
-	//Logger::getLogger()->debug("READING: %s TIMESTAMP: %s", reading.c_str(), timestamp.c_str());
+	Logger::getLogger()->debug("READING: %s TIMESTAMP: %s", reading.c_str(), timestamp.c_str());
 	//Remove from brackets from String
-	replace(reading,"{","");
-	replace(reading,"}","");
-	std::string actionJsonItem = "{"+ reading + "," + "\"timestamp\":\""+ timestamp + " +0000\"}";
+	reading.pop_back();
+	std::string actionJsonItem = reading + "," + "\"timestamp\":\""+ timestamp + " +0000\"}";
+	Logger::getLogger()->debug("READING: %s" , actionJsonItem.c_str());
 	return actionJsonItem;
 }
 
 void CustomAsset::createJsonReadingObject(const std::string& actionJsonItem, const std::string& assetName){
-	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
+	Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
 	this->json_string += "{\""+ assetName +"\":";
 	this->json_string += actionJsonItem;
 }
 
 void CustomAsset::appendJsonReadingObject(const std::string& actionJsonItem,const std::string& assetName)
 {
-	//Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
+	Logger::getLogger()->debug("Append Item %s", actionJsonItem.c_str());
 	this->json_string += ",\"" + assetName +"\":";
 	this->json_string += actionJsonItem;
 }
