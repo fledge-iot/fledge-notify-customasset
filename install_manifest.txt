@@ -1,0 +1,2 @@
+/usr/local/fledge/plugins/notificationDelivery/customasset/libcustomasset.so.1
+/usr/local/fledge/plugins/notificationDelivery/customasset/libcustomasset.so

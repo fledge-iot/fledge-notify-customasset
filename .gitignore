@@ -1,0 +1,17 @@
+# vi
+*.swp
+
+# MacOS Finder
+.DS_Store
+._*
+
+# build
+build
+
+# IDE
+*idea
+
+*.so
+*.so.1
+CMakeCache.txt
+CMakeFiles
