@@ -81,13 +81,13 @@ CustomAsset::~CustomAsset()
  * @param triggerReason		Why the notification is being sent
  * @param message		The message to send
  */
-void CustomAsset::notify(const string& notificationName, const string& triggerReason, const string& message)
+bool CustomAsset::notify(const string& notificationName, const string& triggerReason, const string& message)
 {
 	vector<Datapoint *>	datapoints;
 
 	if (!m_ingest)
 	{
-		return;
+		return false;
 	}
 
 	DatapointValue dpv1(m_description);
@@ -132,6 +132,7 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 			else
 			{
 				Logger::getLogger()->error("The reason returned from the rule for delivery is of a bad type");
+				return false;
 			}
 		}
 	}
@@ -198,6 +199,7 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	Reading customasset(m_customasset, datapoints);
 
 	(*m_ingest)(m_data, &customasset);
+	return true;
 }
 
 /**
