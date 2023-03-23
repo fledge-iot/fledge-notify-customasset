@@ -136,6 +136,11 @@ bool CustomAsset::notify(const string& notificationName, const string& triggerRe
 			}
 		}
 	}
+	else
+	{
+		Logger::getLogger()->error("Invalid JSON: Document parsing error");
+		return false;
+	}
 	DatapointValue dpv4(notificationName);
 	datapoints.push_back(new Datapoint("rule", dpv4));
 
@@ -145,7 +150,7 @@ bool CustomAsset::notify(const string& notificationName, const string& triggerRe
 	for(std::size_t i = 0; i < assetNames.size(); ++i)
 	{
 		assetDatapoints = getAssetDatapointsConfig(assetNames[i]);
-	  readings = getAssetReading(assetNames[i]);
+		readings = getAssetReading(assetNames[i]);
 		Logger::getLogger()->debug("ASSETNAME: %s READING: %s", assetNames[i].c_str(), readings.c_str());
 		//If reading is empty fledge returns empty array string
 		if(readings=="[]"){
@@ -187,18 +192,29 @@ bool CustomAsset::notify(const string& notificationName, const string& triggerRe
 		}
 	}
 
-	this->json_string += "}";
-	//Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
+	try {
 
-	m_store = escape_json(json_string);
-	json_string = "";
+		this->json_string += "}";
+		//Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
 
-	DatapointValue dpv5(m_store);
-	datapoints.push_back(new Datapoint("store", dpv5));
+		m_store = escape_json(json_string);
+		json_string = "";
 
-	Reading customasset(m_customasset, datapoints);
+		DatapointValue dpv5(m_store);
+		datapoints.push_back(new Datapoint("store", dpv5));
 
-	(*m_ingest)(m_data, &customasset);
+		Reading customasset(m_customasset, datapoints);
+
+		(*m_ingest)(m_data, &customasset);
+	}
+	catch (exception& e) {
+                Logger::getLogger()->error("CustomAsset notification failed: %s", e.what());
+                return false;
+        } catch (...) {
+                Logger::getLogger()->error("CustomAsset notification failed.");
+                return false;
+        }
+
 	return true;
 }
 
