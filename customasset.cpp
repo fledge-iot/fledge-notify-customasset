@@ -80,6 +80,7 @@ CustomAsset::~CustomAsset()
  * @param notificationName 	The name of this notification
  * @param triggerReason		Why the notification is being sent
  * @param message		The message to send
+ * @return bool			whether the notify is successful or not
  */
 bool CustomAsset::notify(const string& notificationName, const string& triggerReason, const string& message)
 {
@@ -87,6 +88,7 @@ bool CustomAsset::notify(const string& notificationName, const string& triggerRe
 
 	if (!m_ingest)
 	{
+		Logger::getLogger()->error("m_ingest is null");
 		return false;
 	}
 
