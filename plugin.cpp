@@ -36,55 +36,59 @@ const char * default_config = QUOTE({
 		"description" : "CustomAsset notification plugin",
 		"type" : "string",
 		"default" : PLUGIN_NAME,
-		"readonly" : "true" },
+		"readonly" : "true"
+    },
 	"customasset" : {
 		"description" : "The customasset name to create for the notification",
 		"type" : "string",
 		"default" : "event",
 		"order" : "1",
-		"displayName" : "CustomAsset"
-		},
+		"displayName" : "CustomAsset",
+		"mandatory": "true"
+    },
 	"description" : {
-			"description" : "The event description to add",
-			"type" : "string",
-			"default" : "Notification alert",
-			"order" : "2",
-			"displayName" : "Description"
-			},
+        "description" : "The event description to add",
+        "type" : "string",
+        "default" : "Notification alert",
+        "order" : "2",
+        "displayName" : "Description"
+    },
 	"jsonconfig" : {
 		"description" : "Add assets and datapoint the dilvery sevice needs to consider",
 		"type" : "JSON",
 		"default" : "{ \"asset_name\" : [{\"datapoint_name\": \"alias_name\"}],\"sinusoid\" : [{\"sinusoid\": \"cosinusoid\"}]}",
 		"displayName" : "JSON Configuration",
 		"order" : "3"
-		},
-	"enable": {
-		"description": "A switch that can be used to enable or disable delivery of the customasset notification plugin.",
-		"type": "boolean",
+    },
+	"enable" : {
+		"description" : "A switch that can be used to enable or disable delivery of the customasset notification plugin.",
+		"type" : "boolean",
 		"displayName" : "Enabled",
-		"default": "false",
-		"order" : "4"
+		"default" : "false",
+		"order" : "7"
 	},
-	"enableAuth": {
-		"description": "A switch that can be used to enable or disable authentication.",
-		"type": "boolean",
+	"enableAuth" : {
+		"description" : "A switch that can be used to enable or disable authentication.",
+		"type" : "boolean",
 		"displayName" : "Enable authentication",
-		"default": "false",
-		"order" : "5"
+		"default" : "false",
+		"order" : "4"
 	},
 	"username" : {
 		"description" : "User name for fledge instance",
 		"type" : "string",
 		"displayName" : "Username",
-		"order" : "6",
-		"default" : "max.mustermann"
+		"order" : "5",
+		"default" : "max.mustermann",
+		"validity": "enableAuth == \"true\""
 	},
 	"password" : {
-			"description" : "Password for fledge instance",
-			"type" : "password",
-			"displayName" : "Password",
-			"order" : "7",
-			"default" : "pass"
+        "description" : "Password for fledge instance",
+        "type" : "password",
+        "displayName" : "Password",
+        "order" : "6",
+        "default" : "pass",
+        "validity" : "enableAuth == \"true\""
 	}
 	});
 
