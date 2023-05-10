@@ -1,5 +1,5 @@
 .. Images
-.. |asset_1| image:: images/asset.jpg
+.. |custom_asset| image:: images/custom_asset.jpg
 
 
 Custom Asset Notification
@@ -23,9 +23,9 @@ Once you have created your notification rule and move on to the delivery mechani
 
   - Click *Next*
 
-    +-----------+
-    | |asset_1| |
-    +-----------+
+    +----------------+
+    | |custom_asset| |
+    +----------------+
 
   - Configure the plugin
 
