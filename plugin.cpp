@@ -32,61 +32,65 @@
 #define PLUGIN_NAME "customasset"
 
 const char * default_config = QUOTE({
-	"plugin" : {
-		"description" : "CustomAsset notification plugin",
-		"type" : "string",
-		"default" : PLUGIN_NAME,
-		"readonly" : "true" },
-	"customasset" : {
-		"description" : "The customasset name to create for the notification",
-		"type" : "string",
-		"default" : "event",
-		"order" : "1",
-		"displayName" : "CustomAsset"
-		},
-	"description" : {
-			"description" : "The event description to add",
-			"type" : "string",
-			"default" : "Notification alert",
-			"order" : "2",
-			"displayName" : "Description"
-			},
-	"jsonconfig" : {
-		"description" : "Add assets and datapoint the dilvery sevice needs to consider",
-		"type" : "JSON",
-		"default" : "{ \"asset_name\" : [{\"datapoint_name\": \"alias_name\"}],\"sinusoid\" : [{\"sinusoid\": \"cosinusoid\"}]}",
-		"displayName" : "JSON Configuration",
-		"order" : "3"
-		},
-	"enable": {
-		"description": "A switch that can be used to enable or disable delivery of the customasset notification plugin.",
-		"type": "boolean",
-		"displayName" : "Enabled",
-		"default": "false",
-		"order" : "4"
-	},
-	"enableAuth": {
-		"description": "A switch that can be used to enable or disable authentication.",
-		"type": "boolean",
-		"displayName" : "Enable authentication",
-		"default": "false",
-		"order" : "5"
-	},
-	"username" : {
-		"description" : "User name for fledge instance",
-		"type" : "string",
-		"displayName" : "Username",
-		"order" : "6",
-		"default" : "max.mustermann"
-	},
-	"password" : {
-			"description" : "Password for fledge instance",
-			"type" : "password",
-			"displayName" : "Password",
-			"order" : "7",
-			"default" : "pass"
-	}
-	});
+        "plugin" : {
+            "description" : "CustomAsset notification plugin",
+            "type" : "string",
+            "default" : PLUGIN_NAME,
+            "readonly" : "true"
+        },
+        "customasset" : {
+            "description" : "The customasset name to create for the notification",
+            "type" : "string",
+            "default" : "event",
+            "order" : "1",
+            "displayName" : "CustomAsset",
+            "mandatory": "true"
+        },
+        "description" : {
+            "description" : "The event description to add",
+            "type" : "string",
+            "default" : "Notification alert",
+            "order" : "2",
+            "displayName" : "Description"
+        },
+        "jsonconfig" : {
+            "description" : "Add assets and datapoint the dilvery sevice needs to consider",
+            "type" : "JSON",
+            "default" : "{ \"asset_name\" : [{\"datapoint_name\": \"alias_name\"}],\"sinusoid\" : [{\"sinusoid\": \"cosinusoid\"}]}",
+            "displayName" : "JSON Configuration",
+            "order" : "3"
+        },
+        "enable" : {
+            "description" : "A switch that can be used to enable or disable delivery of the customasset notification plugin.",
+            "type" : "boolean",
+            "displayName" : "Enabled",
+            "default" : "false",
+            "order" : "7"
+        },
+        "enableAuth" : {
+            "description" : "A switch that can be used to enable or disable authentication.",
+            "type" : "boolean",
+            "displayName" : "Enable authentication",
+            "default" : "false",
+            "order" : "4"
+        },
+        "username" : {
+            "description" : "User name for fledge instance",
+            "type" : "string",
+            "displayName" : "Username",
+            "order" : "5",
+            "default" : "max.mustermann",
+            "validity": "enableAuth == \"true\""
+        },
+        "password" : {
+            "description" : "Password for fledge instance",
+            "type" : "password",
+            "displayName" : "Password",
+            "order" : "6",
+            "default" : "pass",
+            "validity" : "enableAuth == \"true\""
+        }
+});
 
 
 using namespace std;
@@ -150,8 +154,7 @@ bool plugin_deliver(PLUGIN_HANDLE handle,
 	Logger::getLogger()->info("CustomAsset notification plugin_deliver(): deliveryName=%s, notificationName=%s, triggerReason=%s, message=%s",
 							deliveryName.c_str(), notificationName.c_str(), triggerReason.c_str(), message.c_str());
 	CustomAsset *customasset = (CustomAsset *)handle;
-	customasset->notify(notificationName, triggerReason, message);
-	return true;
+	return customasset->notify(notificationName, triggerReason, message);
 }
 
 /**

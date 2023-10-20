@@ -80,14 +80,16 @@ CustomAsset::~CustomAsset()
  * @param notificationName 	The name of this notification
  * @param triggerReason		Why the notification is being sent
  * @param message		The message to send
+ * @return bool			whether the notify is successful or not
  */
-void CustomAsset::notify(const string& notificationName, const string& triggerReason, const string& message)
+bool CustomAsset::notify(const string& notificationName, const string& triggerReason, const string& message)
 {
 	vector<Datapoint *>	datapoints;
 
 	if (!m_ingest)
 	{
-		return;
+		Logger::getLogger()->error("m_ingest is null");
+		return false;
 	}
 
 	DatapointValue dpv1(m_description);
@@ -132,8 +134,14 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 			else
 			{
 				Logger::getLogger()->error("The reason returned from the rule for delivery is of a bad type");
+				return false;
 			}
 		}
+	}
+	else
+	{
+		Logger::getLogger()->error("Invalid JSON: Document parsing error");
+		return false;
 	}
 	DatapointValue dpv4(notificationName);
 	datapoints.push_back(new Datapoint("rule", dpv4));
@@ -144,7 +152,7 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 	for(std::size_t i = 0; i < assetNames.size(); ++i)
 	{
 		assetDatapoints = getAssetDatapointsConfig(assetNames[i]);
-	  readings = getAssetReading(assetNames[i]);
+		readings = getAssetReading(assetNames[i]);
 		Logger::getLogger()->debug("ASSETNAME: %s READING: %s", assetNames[i].c_str(), readings.c_str());
 		//If reading is empty fledge returns empty array string
 		if(readings=="[]"){
@@ -186,18 +194,30 @@ void CustomAsset::notify(const string& notificationName, const string& triggerRe
 		}
 	}
 
-	this->json_string += "}";
-	//Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
+	try {
 
-	m_store = escape_json(json_string);
-	json_string = "";
+		this->json_string += "}";
+		//Logger::getLogger()->debug("FINAL JSON %s", json_string.c_str());
 
-	DatapointValue dpv5(m_store);
-	datapoints.push_back(new Datapoint("store", dpv5));
+		m_store = escape_json(json_string);
+		json_string = "";
 
-	Reading customasset(m_customasset, datapoints);
+		DatapointValue dpv5(m_store);
+		datapoints.push_back(new Datapoint("store", dpv5));
 
-	(*m_ingest)(m_data, &customasset);
+		Reading customasset(m_customasset, datapoints);
+
+		(*m_ingest)(m_data, &customasset);
+	}
+	catch (exception& e) {
+                Logger::getLogger()->error("CustomAsset notification failed: %s", e.what());
+                return false;
+        } catch (...) {
+                Logger::getLogger()->error("CustomAsset notification failed.");
+                return false;
+        }
+
+	return true;
 }
 
 /**
